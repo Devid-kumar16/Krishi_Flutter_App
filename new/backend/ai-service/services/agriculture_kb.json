@@ -1,0 +1,205 @@
+[
+  {
+    "crop": "wheat",
+    "question": "Best sowing time for wheat?",
+    "answer": "Best sowing time for wheat is mid-October to late November depending on region."
+  },
+  {
+    "crop": "wheat",
+    "question": "Ideal soil for wheat cultivation?",
+    "answer": "Well-drained loamy soil with pH 6-7.5 is ideal for wheat."
+  },
+  {
+    "crop": "wheat",
+    "question": "Seed rate for wheat per hectare?",
+    "answer": "Recommended seed rate is 100-125 kg per hectare."
+  },
+  {
+    "crop": "wheat",
+    "question": "How to increase wheat yield?",
+    "answer": "Use certified seeds, proper irrigation, balanced fertilization and timely weed control."
+  },
+  {
+    "crop": "wheat",
+    "question": "How to control wheat rust?",
+    "answer": "Use resistant varieties and spray Propiconazole fungicide."
+  },
+  {
+    "crop": "wheat",
+    "question": "Nitrogen application stage in wheat?",
+    "answer": "Apply nitrogen during tillering and booting stage."
+  },
+  {
+    "crop": "wheat",
+    "question": "Common pests in wheat?",
+    "answer": "Aphids and termites are common pests in wheat crop."
+  },
+  {
+    "crop": "wheat",
+    "question": "How many irrigations needed in wheat?",
+    "answer": "Usually 4-5 irrigations are required depending on soil and climate."
+  },
+  {
+    "crop": "wheat",
+    "question": "Best fertilizer for wheat?",
+    "answer": "Balanced NPK fertilizer based on soil test is recommended."
+  },
+  {
+    "crop": "wheat",
+    "question": "Weed control in wheat?",
+    "answer": "Use herbicides like Isoproturon at recommended dosage."
+  },
+  {
+    "crop": "wheat",
+    "question": "Harvesting time of wheat?",
+    "answer": "Harvest when grains are hard and moisture is around 20%."
+  },
+  {
+    "crop": "wheat",
+    "question": "How to prevent lodging in wheat?",
+    "answer": "Avoid excess nitrogen and use dwarf varieties."
+  },
+  {
+    "crop": "wheat",
+    "question": "Temperature requirement for wheat?",
+    "answer": "Optimal temperature is 15-25°C."
+  },
+  {
+    "crop": "wheat",
+    "question": "How to manage termite in wheat?",
+    "answer": "Apply Chlorpyrifos in soil before sowing."
+  },
+  {
+    "crop": "wheat",
+    "question": "Best wheat varieties?",
+    "answer": "HD-2967 and PBW-343 are popular varieties."
+  },
+
+
+  {
+    "crop": "rice",
+    "question": "Best sowing time for rice?",
+    "answer": "Rice is sown during Kharif season from June to July."
+  },
+  {
+    "crop": "rice",
+    "question": "Ideal water level in rice field?",
+    "answer": "Maintain 2-5 cm standing water during vegetative stage."
+  },
+  {
+    "crop": "rice",
+    "question": "How to control rice pests?",
+    "answer": "Use integrated pest management and recommended insecticides."
+  },
+  {
+    "crop": "rice",
+    "question": "Common disease in rice?",
+    "answer": "Blast and bacterial leaf blight are common diseases."
+  },
+  {
+    "crop": "rice",
+    "question": "Best fertilizer schedule for rice?",
+    "answer": "Apply nitrogen in split doses at transplanting, tillering and panicle stage."
+  },
+  {
+    "crop": "rice",
+    "question": "Seed rate for rice?",
+    "answer": "About 20-30 kg seed per hectare for transplanting."
+  },
+  {
+    "crop": "rice",
+    "question": "How to prevent rice blast?",
+    "answer": "Use resistant varieties and spray Tricyclazole."
+  },
+  {
+    "crop": "rice",
+    "question": "Harvesting time for rice?",
+    "answer": "Harvest when 80% grains turn golden yellow."
+  },
+  {
+    "crop": "rice",
+    "question": "Ideal soil for rice?",
+    "answer": "Clayey and water-retentive soil is ideal."
+  },
+  {
+    "crop": "rice",
+    "question": "Weed management in rice?",
+    "answer": "Use pre-emergence herbicide like Butachlor."
+  },
+  {
+    "crop": "rice",
+    "question": "How to increase rice yield?",
+    "answer": "Use high-yielding varieties and proper nutrient management."
+  },
+  {
+    "crop": "rice",
+    "question": "Temperature requirement for rice?",
+    "answer": "Rice requires 20-35°C temperature."
+  },
+  {
+    "crop": "rice",
+    "question": "How to control brown plant hopper?",
+    "answer": "Apply Imidacloprid at recommended dosage."
+  },
+  {
+    "crop": "rice",
+    "question": "Best rice varieties?",
+    "answer": "IR64 and Basmati 1121 are popular varieties."
+  },
+  {
+    "crop": "rice",
+    "question": "Nitrogen deficiency symptoms in rice?",
+    "answer": "Yellowing of older leaves indicates nitrogen deficiency."
+  },
+
+  {
+    "crop": "cotton",
+    "question": "Best fertilizer for cotton?",
+    "answer": "Apply balanced NPK based on soil test."
+  },
+  {
+    "crop": "cotton",
+    "question": "Sowing time for cotton?",
+    "answer": "Cotton is sown from April to May."
+  },
+  {
+    "crop": "cotton",
+    "question": "Common pest in cotton?",
+    "answer": "Bollworm is a major pest in cotton."
+  },
+  {
+    "crop": "cotton",
+    "question": "How to control bollworm?",
+    "answer": "Spray Spinosad or recommended insecticide."
+  },
+  {
+    "crop": "cotton",
+    "question": "Irrigation requirement for cotton?",
+    "answer": "Irrigate at flowering and boll formation stage."
+  },
+  {
+    "crop": "cotton",
+    "question": "Best cotton varieties?",
+    "answer": "Bt cotton hybrids are widely cultivated."
+  },
+  {
+    "crop": "cotton",
+    "question": "How to prevent leaf curl virus?",
+    "answer": "Control whitefly and use resistant varieties."
+  },
+  {
+    "crop": "cotton",
+    "question": "Seed rate for cotton?",
+    "answer": "15-20 kg per hectare depending on variety."
+  },
+  {
+    "crop": "cotton",
+    "question": "Soil type for cotton?",
+    "answer": "Black cotton soil is ideal."
+  },
+  {
+    "crop": "cotton",
+    "question": "Harvesting stage of cotton?",
+    "answer": "Harvest when bolls open fully."
+  }
+]
