@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:fl_chart/fl_chart.dart';
 import '../services/market_services.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 
 class MarketScreen extends StatefulWidget {
   const MarketScreen({super.key});
@@ -19,24 +20,29 @@ class _MarketScreenState extends State<MarketScreen> {
   bool isLoading = true;
   bool isHindi = false;
 
+  Future<List<double>>? futurePrices;
+
   @override
   void initState() {
     super.initState();
-    fetchMarketData();
+
+    // ✅ DEFAULT LOAD
+    searchController.text = "Tomato";
+    fetchMarketData(crop: "Tomato");
   }
 
   // ================= FETCH DATA =================
-  Future<void> fetchMarketData({String crop = ""}) async {
-
+  Future<void> fetchMarketData({String crop = "Tomato"}) async {
     setState(() => isLoading = true);
 
-    final data = crop.isEmpty
-        ? await MarketService.getAllMarketData()
-        : await MarketService.searchCrop(crop);
+    final data = await MarketService.searchCrop(crop);
 
     setState(() {
       marketData = data;
       isLoading = false;
+
+      // ✅ FIX: update graph data
+      futurePrices = MarketService.getPriceHistory(crop);
     });
   }
 
@@ -59,43 +65,59 @@ class _MarketScreenState extends State<MarketScreen> {
     fetchMarketData(crop: result);
   }
 
-  // ================= PRICE GRAPH =================
-Widget buildGraph() {
-  if (marketData.isEmpty) return const SizedBox();
+  // ================= GRAPH =================
+  Widget buildGraph() {
+    if (futurePrices == null) return const SizedBox();
 
-  return SizedBox(
-    height: 200,
-    child: LineChart(
-      LineChartData(
-        titlesData: const FlTitlesData(show: false),
-        borderData: FlBorderData(show: false),
-        lineBarsData: [
-          LineChartBarData(
-            isCurved: true,
-            spots: List.generate(
-              marketData.length,
-              (index) {
-                final rawPrice = marketData[index]["price_per_quintal"];
+    return FutureBuilder<List<double>>(
+      future: futurePrices,
+      builder: (context, snapshot) {
 
-                // ✅ SAFE CONVERSION
-                double price = double.tryParse(
-                      rawPrice?.toString() ?? "0",
-                    ) ??
-                    0.0;
+        if (!snapshot.hasData) {
+          return const Padding(
+            padding: EdgeInsets.all(16),
+            child: CircularProgressIndicator(),
+          );
+        }
 
-                return FlSpot(
-                  index.toDouble(),
-                  price,
-                );
-              },
+        final prices = snapshot.data!;
+
+        if (prices.isEmpty) {
+          return const Text("No price history available");
+        }
+
+        return SizedBox(
+          height: 220,
+          child: LineChart(
+            LineChartData(
+              titlesData: const FlTitlesData(show: false),
+              borderData: FlBorderData(show: false),
+              lineBarsData: [
+                LineChartBarData(
+                  isCurved: true,
+                  spots: List.generate(
+                    prices.length,
+                    (i) => FlSpot(i.toDouble(), prices[i]),
+                  ),
+                  dotData: FlDotData(show: true),
+                ),
+              ],
             ),
           ),
-        ],
-      ),
-    ),
-  );
-}
+        );
+      },
+    );
+  }
 
+  // ================= NAVIGATE =================
+  void openDetails(dynamic item) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MarketDetailScreen(data: item),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -113,11 +135,11 @@ Widget buildGraph() {
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: fetchMarketData,
+        onRefresh: () => fetchMarketData(crop: searchController.text),
         child: Column(
           children: [
 
-            // SEARCH BAR
+            // 🔍 SEARCH BAR
             Padding(
               padding: const EdgeInsets.all(12),
               child: Row(
@@ -147,8 +169,10 @@ Widget buildGraph() {
               ),
             ),
 
+            // 📊 GRAPH
             if (!isLoading) buildGraph(),
 
+            // 📋 LIST
             Expanded(
               child: isLoading
                   ? const Center(child: CircularProgressIndicator())
@@ -163,38 +187,36 @@ Widget buildGraph() {
                           itemCount: marketData.length,
                           itemBuilder: (context, index) {
 
-                            final crop = marketData[index];
+                            final item = marketData[index];
 
-                            return Card(
-                              margin: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 6),
-                              child: ListTile(
-                                leading: const Icon(
-                                    Icons.agriculture,
-                                    color: Colors.green),
-                                title: Text(
-                                  crop["crop_name"] ?? "",
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold),
+                            return InkWell(
+                              onTap: () => openDetails(item),
+                              child: Card(
+                                margin: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 6),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
-                                subtitle: Text(
-                                    "Mandi: ${crop["mandi_name"] ?? ""}"),
-trailing: Builder(
-  builder: (context) {
-    final rawPrice = crop["price_per_quintal"];
-    final price =
-        double.tryParse(rawPrice?.toString() ?? "0") ?? 0.0;
-
-    return Text(
-      "₹${price.toStringAsFixed(2)}/qtl",
-      style: const TextStyle(
-        fontWeight: FontWeight.bold,
-        color: Colors.green,
-      ),
-    );
-  },
-),
-
+                                elevation: 3,
+                                child: ListTile(
+                                  leading: const Icon(
+                                      Icons.agriculture,
+                                      color: Colors.green),
+                                  title: Text(
+                                    item["crop"] ?? "",
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                                  subtitle: Text(
+                                      "${item["market"]}, ${item["state"]}"),
+                                  trailing: Text(
+                                    "₹${item["price"]}",
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.green,
+                                    ),
+                                  ),
+                                ),
                               ),
                             );
                           },
@@ -202,6 +224,195 @@ trailing: Builder(
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+//////////////////////////////////////////////////////////////////
+// 🔥 DETAIL SCREEN WITH REAL GRAPH
+//////////////////////////////////////////////////////////////////
+
+class MarketDetailScreen extends StatefulWidget {
+  final dynamic data;
+
+  const MarketDetailScreen({super.key, required this.data});
+
+  @override
+  State<MarketDetailScreen> createState() => _MarketDetailScreenState();
+}
+
+class _MarketDetailScreenState extends State<MarketDetailScreen> {
+
+  bool isHindi = false;
+  final FlutterTts tts = FlutterTts();
+
+  Future<List<double>>? futurePrices;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // ✅ REAL GRAPH DATA
+    futurePrices =
+        MarketService.getPriceHistory(widget.data["crop"]);
+  }
+
+String getValue(String key) {
+  final value = widget.data[key];
+
+  if (value == null ||
+      value.toString().trim().isEmpty ||
+      value.toString().toLowerCase() == "null") {
+    return "Not Available";
+  }
+
+  return value.toString();
+}
+
+  Future<void> speak() async {
+    String text = isHindi
+        ? "फसल ${getValue("crop")} कीमत ${getValue("price")} रुपए"
+        : "Crop ${getValue("crop")} price ${getValue("price")} rupees";
+
+    await tts.setLanguage(isHindi ? "hi-IN" : "en-US");
+    await tts.speak(text);
+  }
+
+  Widget buildGraph() {
+    return FutureBuilder<List<double>>(
+      future: futurePrices,
+      builder: (context, snapshot) {
+
+        if (!snapshot.hasData) {
+          return const CircularProgressIndicator();
+        }
+
+        final prices = snapshot.data!;
+
+        if (prices.isEmpty) {
+          return const Text("No history data");
+        }
+
+        return SizedBox(
+          height: 200,
+          child: LineChart(
+            LineChartData(
+              titlesData: const FlTitlesData(show: false),
+              borderData: FlBorderData(show: false),
+              lineBarsData: [
+                LineChartBarData(
+                  isCurved: true,
+                  spots: List.generate(
+                    prices.length,
+                    (i) => FlSpot(i.toDouble(), prices[i]),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(isHindi ? "मंडी विवरण" : "Market Details"),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.language),
+            onPressed: () {
+              setState(() => isHindi = !isHindi);
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.volume_up),
+            onPressed: speak,
+          ),
+        ],
+      ),
+
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+
+            // HEADER
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Colors.green, Colors.teal],
+                ),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.agriculture,
+                      color: Colors.white, size: 40),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      getValue("crop"),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    "₹${getValue("price")}",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // REAL GRAPH
+            buildGraph(),
+
+            const SizedBox(height: 16),
+
+            // DETAILS
+buildTile(Icons.store, "Market", getValue("market")),
+buildTile(Icons.location_on, "State", getValue("state")),
+buildTile(Icons.map, "District", getValue("district")),
+buildTile(Icons.currency_rupee, "Price", "₹${getValue("price")}"),
+buildTile(Icons.calendar_today, "Date", getValue("date")),
+
+// 🔥 NEW (if available)
+buildTile(Icons.trending_up, "Min Price", getValue("min_price")),
+buildTile(Icons.trending_down, "Max Price", getValue("max_price")),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget buildTile(IconData icon, String label, String value) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.green),
+          const SizedBox(width: 10),
+          Expanded(child: Text("$label: $value")),
+        ],
       ),
     );
   }

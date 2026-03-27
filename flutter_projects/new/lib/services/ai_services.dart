@@ -7,7 +7,7 @@ class AIService {
   final stt.SpeechToText _speech = stt.SpeechToText();
   final FlutterTts _tts = FlutterTts();
 
-  static const String baseUrl = "http://10.193.156.138:8000";
+  static const String baseUrl = "http://10.168.255.138:8000";
 
   bool _isListening = false;
 
@@ -16,9 +16,7 @@ class AIService {
   Future<bool> initSpeech() async {
     return await _speech.initialize(
       onStatus: (status) {
-        if (status == "done") {
-          _isListening = false;
-        }
+        if (status == "done") _isListening = false;
       },
       onError: (error) {
         _isListening = false;
@@ -57,24 +55,36 @@ class AIService {
 
   // ================= AI ADVISORY =================
 
-  Future<String> getAIAdvice(String question) async {
+  Future<String> getAIAdvice(
+    String question, {
+    String language = "en",
+  }) async {
     try {
-      final response = await http.post(
-        Uri.parse("$baseUrl/advisory"),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({"question": question}),
-      );
+      final response = await http
+          .post(
+            Uri.parse("$baseUrl/advisory"),
+            headers: {"Content-Type": "application/json"},
+            body: jsonEncode({
+              "question": question,
+              "language": language, // 🔥 FIXED
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      print("Advisory Response: ${response.body}");
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final aiResponse = data["response"];
+        final aiResponse = data["response"] ?? "No response";
 
-        await speak(aiResponse); // auto detect language
+        await speak(aiResponse, language: language);
+
         return aiResponse;
       } else {
         return "Server Error ${response.statusCode}";
       }
     } catch (e) {
+      print("Advisory Error: $e");
       return "Unable to connect to AI service";
     }
   }
@@ -95,38 +105,37 @@ class AIService {
         await http.MultipartFile.fromPath('file', imagePath),
       );
 
-      var response = await request.send();
+      // 🔥 ADD LANGUAGE SUPPORT
+      request.fields['language'] = language;
+
+      var response = await request.send().timeout(const Duration(seconds: 20));
+
       var responseData = await response.stream.bytesToString();
 
       print("Disease API Response: $responseData");
 
       if (response.statusCode == 200) {
         final data = jsonDecode(responseData);
-        final prediction = data["prediction"];
 
         return {
-          "disease": prediction["disease"],
-          "confidence": prediction["confidence"],
-          "recommendation": prediction["recommendation"],
+          "disease": data["prediction"]["disease"],
+          "confidence": data["prediction"]["confidence"],
+          "recommendation": data["prediction"]["recommendation"],
         };
       } else {
         return {"error": "Server Error ${response.statusCode}"};
       }
     } catch (e) {
+      print("Disease API Error: $e");
       return {"error": "Unable to connect to AI service"};
     }
   }
 
   // ================= TEXT TO SPEECH =================
 
-  Future<void> speak(String text) async {
+  Future<void> speak(String text, {String language = "en"}) async {
     try {
-      // Auto detect Hindi characters
-      if (text.contains(RegExp(r'[अ-ह]'))) {
-        await _tts.setLanguage("hi-IN");
-      } else {
-        await _tts.setLanguage("en-US");
-      }
+      await _tts.setLanguage(language == "hi" ? "hi-IN" : "en-US");
 
       await _tts.setSpeechRate(0.5);
       await _tts.setVolume(1.0);

@@ -1,8 +1,11 @@
 class ApiConfig {
-  static const String baseUrl = "http://10.193.156.138:5000/api";
 
-  static const String auth = "$baseUrl/auth";
-  static const String disease = "$baseUrl/disease";
+  // ✅ YOUR FASTAPI SERVER (correct IP + port)
+  static const String baseUrl = "http://10.168.255.138:8000";
+
+  // ================= ENDPOINTS =================
+  static const String disease = "$baseUrl/predict";
   static const String advisory = "$baseUrl/advisory";
   static const String market = "$baseUrl/market";
+
 }
