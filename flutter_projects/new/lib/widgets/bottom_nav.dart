@@ -8,21 +8,27 @@ class BottomNavBar extends StatelessWidget {
   void _onItemTapped(BuildContext context, int index) {
     if (index == currentIndex) return;
 
+    // 🔥 Use pushNamed instead of pushReplacement
     switch (index) {
       case 0:
-        Navigator.pushReplacementNamed(context, AppRoutes.home);
+        Navigator.pushNamedAndRemoveUntil(
+            context, AppRoutes.home, (route) => false);
         break;
       case 1:
-        Navigator.pushReplacementNamed(context, AppRoutes.disease);
+        Navigator.pushNamedAndRemoveUntil(
+            context, AppRoutes.disease, (route) => false);
         break;
       case 2:
-        Navigator.pushReplacementNamed(context, AppRoutes.advisory);
+        Navigator.pushNamedAndRemoveUntil(
+            context, AppRoutes.advisory, (route) => false);
         break;
       case 3:
-        Navigator.pushReplacementNamed(context, AppRoutes.market);
+        Navigator.pushNamedAndRemoveUntil(
+            context, AppRoutes.market, (route) => false);
         break;
       case 4:
-        Navigator.pushReplacementNamed(context, AppRoutes.profile);
+        Navigator.pushNamedAndRemoveUntil(
+            context, AppRoutes.profile, (route) => false);
         break;
     }
   }
@@ -50,7 +56,7 @@ class BottomNavBar extends StatelessWidget {
         backgroundColor: Colors.transparent,
         elevation: 0,
         selectedItemColor: const Color(0xFF2E7D32),
-        unselectedItemColor: Colors.grey.shade500,
+        unselectedItemColor: Colors.grey,
         selectedFontSize: 12,
         unselectedFontSize: 11,
         showUnselectedLabels: true,

@@ -1,9 +1,54 @@
 import 'package:flutter/material.dart';
+import '../services/location_service.dart';
+import '../services/weather_service.dart';
 import '../widgets/bottom_nav.dart';
 import '../routes.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  String temperature = "--";
+  String weather = "Loading...";
+
+  @override
+  void initState() {
+    super.initState();
+    loadWeather();
+  }
+
+  void loadWeather() async {
+    try {
+      final position = await LocationService.getLocation();
+
+if (position == null) {
+  setState(() {
+    temperature = "--";
+    weather = "Location Off";
+  });
+  return;
+}
+
+      final data = await WeatherService.getWeather(
+        position.latitude,
+        position.longitude,
+      );
+
+      setState(() {
+        temperature = "${data['main']['temp']}°C";
+        weather = data['weather'][0]['main'];
+      });
+    } catch (e) {
+      setState(() {
+        temperature = "--";
+        weather = "Unavailable";
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +88,7 @@ class HomeScreen extends StatelessWidget {
 
               /// 🔹 Welcome Section
               const Text(
-                "Welcome 👋",
+                "Welcome",
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -139,7 +184,7 @@ class HomeScreen extends StatelessWidget {
 
               const SizedBox(height: 30),
 
-              /// 🌤 Weather Section
+              /// 🌤 Weather Section (DYNAMIC)
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
@@ -155,29 +200,50 @@ class HomeScreen extends StatelessWidget {
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: const [
+                  children: [
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
+                        const Text(
                           "Today's Weather",
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
                           ),
                         ),
-                        SizedBox(height: 6),
+                        const SizedBox(height: 6),
                         Text(
-                          "28°C • Sunny",
-                          style: TextStyle(
+                          "$temperature • $weather",
+                          style: const TextStyle(
                             fontSize: 14,
                             color: Colors.grey,
                           ),
                         ),
+                        const SizedBox(height: 6),
+
+                        /// 🌾 Smart Farming Advice
+                        Text(
+                          weather.toLowerCase().contains("rain")
+                              ? "⚠️ Avoid spraying pesticides"
+                              : "✅ Good for farming activities",
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.green,
+                          ),
+                        ),
                       ],
                     ),
-                    Icon(Icons.wb_sunny,
-                        color: Colors.orange, size: 36),
+
+                    /// 🌤 Dynamic Icon
+                    Icon(
+                      weather.toLowerCase().contains("rain")
+                          ? Icons.cloud
+                          : weather.toLowerCase().contains("cloud")
+                              ? Icons.cloud_queue
+                              : Icons.wb_sunny,
+                      color: Colors.orange,
+                      size: 36,
+                    ),
                   ],
                 ),
               ),
@@ -248,7 +314,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  /// 🔹 Modern Card UI
+  /// 🔹 Feature Card UI
   Widget _buildCard(
     BuildContext context, {
     required IconData icon,

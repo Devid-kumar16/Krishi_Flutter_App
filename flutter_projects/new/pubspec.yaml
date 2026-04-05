@@ -13,21 +13,24 @@ dependencies:
 
   cupertino_icons: ^1.0.6
 
-  # Networking
+  # 🌐 Networking
   http: ^1.2.1
 
-  # Local storage
+  # 💾 Local storage
   shared_preferences: ^2.2.2
 
-  # Image picker
+  # 📷 Image picker
   image_picker: ^1.0.7
 
-  # Voice features
+  # 🎤 Voice features
   speech_to_text: ^7.3.0
   flutter_tts: ^3.6.3
 
-  # Charts
+  # 📊 Charts
   fl_chart: ^0.66.0
+
+  # 📍 LOCATION (✅ FIXED POSITION)
+  geolocator: ^14.0.2
 
 dev_dependencies:
   flutter_test:

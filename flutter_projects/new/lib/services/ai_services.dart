@@ -7,7 +7,7 @@ class AIService {
   final stt.SpeechToText _speech = stt.SpeechToText();
   final FlutterTts _tts = FlutterTts();
 
-  static const String baseUrl = "http://10.168.255.138:8000";
+  static const String baseUrl = "http://10.37.241.138:8000";
 
   bool _isListening = false;
 

@@ -7,22 +7,22 @@ require("dotenv").config();
 const pool = mysql.createPool({
   host: process.env.DB_HOST || "localhost",
   user: process.env.DB_USER || "root",
-  password: process.env.DB_PASSWORD || "",
+  password: process.env.DB_PASSWORD || "devid@2030",
   database: process.env.DB_NAME || "agri_advisor_pro",
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
 });
 
-// Test connection
+// ✅ Test connection properly
 pool.getConnection((err, connection) => {
   if (err) {
-    console.error("❌ Database connection failed:", err.message);
+    console.error("❌ Database connection failed:", err);
   } else {
     console.log("✅ MySQL Connected Successfully");
     connection.release();
   }
 });
 
-// Export promise-based pool
-module.exports = pool.promise();
+// ✅ IMPORTANT: export NORMAL pool (not promise)
+module.exports = pool;

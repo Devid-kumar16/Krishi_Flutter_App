@@ -31,20 +31,45 @@ class _MarketScreenState extends State<MarketScreen> {
     fetchMarketData(crop: "Tomato");
   }
 
-  // ================= FETCH DATA =================
-  Future<void> fetchMarketData({String crop = "Tomato"}) async {
-    setState(() => isLoading = true);
+Future<void> fetchMarketData({String crop = "Tomato"}) async {
+  setState(() => isLoading = true);
+
+  try {
+    // ✅ FIX 1: Clean input BEFORE API call
+    crop = crop.trim();
+
+    if (crop.isEmpty) {
+      crop = "Tomato";
+    } else {
+      crop =
+          crop[0].toUpperCase() + crop.substring(1).toLowerCase();
+    }
+
+    print("SEARCHING FOR: $crop");
 
     final data = await MarketService.searchCrop(crop);
+
+    print("DATA LENGTH: ${data.length}");
 
     setState(() {
       marketData = data;
       isLoading = false;
-
-      // ✅ FIX: update graph data
       futurePrices = MarketService.getPriceHistory(crop);
     });
+
+  } catch (e) {
+    print("FETCH ERROR: $e");
+
+    setState(() {
+      marketData = [];
+      isLoading = false;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Failed to load data")),
+    );
   }
+}
 
   // ================= VOICE SEARCH =================
   Future<void> startVoiceSearch() async {
@@ -59,7 +84,15 @@ class _MarketScreenState extends State<MarketScreen> {
     await Future.delayed(const Duration(seconds: 4));
     await speech.stop();
 
-    String result = speech.lastRecognizedWords;
+    String result = speech.lastRecognizedWords.trim();
+
+// 🔥 CLEAN INPUT
+result = result.split(" ").first; // remove extra words
+
+print("VOICE INPUT: $result");
+
+searchController.text = result;
+fetchMarketData(crop: result);
     searchController.text = result;
 
     fetchMarketData(crop: result);
@@ -176,13 +209,24 @@ class _MarketScreenState extends State<MarketScreen> {
             Expanded(
               child: isLoading
                   ? const Center(child: CircularProgressIndicator())
-                  : marketData.isEmpty
+                  : marketData.isEmpty && !isLoading
                       ? Center(
-                          child: Text(
-                              isHindi
-                                  ? "कोई डेटा नहीं मिला"
-                                  : "No market data found"),
-                        )
+  child: Column(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      const Icon(Icons.search_off, size: 60, color: Colors.grey),
+      const SizedBox(height: 10),
+      Text(isHindi ? "कोई डेटा नहीं मिला" : "No market data found"),
+      const SizedBox(height: 10),
+      ElevatedButton(
+        onPressed: () {
+          fetchMarketData(crop: searchController.text);
+        },
+        child: const Text("Retry"),
+      )
+    ],
+  ),
+)
                       : ListView.builder(
                           itemCount: marketData.length,
                           itemBuilder: (context, index) {
@@ -255,7 +299,7 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
 
     // ✅ REAL GRAPH DATA
     futurePrices =
-        MarketService.getPriceHistory(widget.data["crop"]);
+        MarketService.getPriceHistory(widget.data["crop"].toString());
   }
 
 String getValue(String key) {

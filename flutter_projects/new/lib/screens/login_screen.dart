@@ -1,5 +1,5 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../routes.dart';
 import '../services/auth_service.dart';
 
@@ -27,29 +27,49 @@ class _LoginScreenState extends State<LoginScreen> {
       final result = await AuthService.login(
         emailController.text.trim(),
         passwordController.text.trim(),
-      );
+      ).timeout(const Duration(seconds: 10));
 
-      if (result["token"] != null) {
-        // Save token
-        SharedPreferences prefs = await SharedPreferences.getInstance();
-        await prefs.setString("token", result["token"]);
+      print("✅ LOGIN RESPONSE: $result");
 
-        if (!mounted) return;
+      // 🔥 SAFE VALIDATION
+      if (result != null &&
+          result is Map &&
+          result.containsKey("success")) {
+        
+        if (result["success"] == true) {
+          if (!mounted) return;
 
-        Navigator.pushReplacementNamed(context, AppRoutes.home);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Login Successful")),
+          );
+
+          Navigator.pushReplacementNamed(context, AppRoutes.home);
+        } else {
+          showError(result["message"] ?? "Invalid credentials");
+        }
+
       } else {
-        showError(result["message"] ?? "Login failed");
+        showError("Invalid server response");
       }
+
+    } on TimeoutException {
+      showError("Server timeout. Check backend.");
     } catch (e) {
-      showError("Server error. Try again.");
+      print("❌ LOGIN ERROR: $e");
+      showError("Cannot connect to server");
     }
 
-    setState(() => isLoading = false);
+    if (mounted) {
+      setState(() => isLoading = false);
+    }
   }
 
   void showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+      ),
     );
   }
 
@@ -78,7 +98,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 20),
 
                 Text(
-                  isHindi ? "कृषि ऐप में लॉगिन करें" : "Login to Krishi",
+                  isHindi
+                      ? "कृषि ऐप में लॉगिन करें"
+                      : "Login to Krishi",
                   style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
@@ -87,12 +109,19 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 30),
 
+                // EMAIL
                 TextFormField(
                   controller: emailController,
-                  validator: (value) =>
-                      value == null || value.isEmpty
-                          ? "Enter Email"
-                          : null,
+                  keyboardType: TextInputType.emailAddress,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return "Enter Email";
+                    }
+                    if (!value.contains("@")) {
+                      return "Invalid Email";
+                    }
+                    return null;
+                  },
                   decoration: InputDecoration(
                     labelText: isHindi ? "ईमेल" : "Email",
                     prefixIcon: const Icon(Icons.email),
@@ -104,6 +133,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 20),
 
+                // PASSWORD
                 TextFormField(
                   controller: passwordController,
                   obscureText: true,
@@ -122,6 +152,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: 30),
 
+                // LOGIN BUTTON
                 SizedBox(
                   width: double.infinity,
                   height: 50,

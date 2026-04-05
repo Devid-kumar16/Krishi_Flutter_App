@@ -31,7 +31,8 @@ class _SignupScreenState extends State<SignupScreen> {
 
     setState(() => isLoading = false);
 
-    if (result["message"] == "Signup successful") {
+    // ✅ FIXED CONDITION
+    if (result["success"] == true) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Account created successfully")),
       );
@@ -123,8 +124,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     backgroundColor: Colors.green,
                   ),
                   child: isLoading
-                      ? const CircularProgressIndicator(
-                          color: Colors.white)
+                      ? const CircularProgressIndicator(color: Colors.white)
                       : const Text(
                           "Create Account",
                           style: TextStyle(fontSize: 18),

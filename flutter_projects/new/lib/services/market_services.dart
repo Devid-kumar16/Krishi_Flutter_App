@@ -31,63 +31,53 @@ class MarketService {
   // ================= SEARCH CROP =================
 static Future<List<dynamic>> searchCrop(String crop) async {
   try {
-    String translatedCrop = translateCropName(crop);
+    String searchCrop = crop.toLowerCase().trim();
 
-    // 🔹 1. Your backend API
-    final response = await http.get(
-      Uri.parse("${ApiConfig.market}?crop=${translatedCrop.trim()}"),
-    );
+    List allData = [];
 
-    List backendData = [];
+    // 🔥 FETCH MULTIPLE PAGES
+    for (int offset = 0; offset <= 2000; offset += 1000) {
 
-    if (response.statusCode == 200) {
+      final url =
+          "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070"
+          "?api-key=$agmarknetApiKey"
+          "&format=json"
+          "&limit=1000"
+          "&offset=$offset";
+
+      final response = await http.get(Uri.parse(url));
+
+      if (response.statusCode != 200) continue;
+
       final jsonData = jsonDecode(response.body);
-      backendData = jsonData["data"] ?? [];
+      List records = jsonData["records"] ?? [];
+
+      allData.addAll(records);
     }
 
-    // 🔹 2. Govt API (for complete data)
-    final govtUrl =
-        "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070"
-        "?api-key=$agmarknetApiKey"
-        "&format=json"
-        "&filters[commodity]=$translatedCrop"
-        "&limit=20";
+    print("TOTAL LOADED: ${allData.length}");
 
-    final govtResponse = await http.get(Uri.parse(govtUrl));
-
-    List govtData = [];
-
-    if (govtResponse.statusCode == 200) {
-      final jsonData = jsonDecode(govtResponse.body);
-      govtData = jsonData["records"] ?? [];
-    }
-
-    // 🔥 3. MERGE BOTH DATA
-    List mergedData = backendData.map((item) {
-
-      // find matching govt record
-      final match = govtData.firstWhere(
-        (g) => g["market"] == item["market"],
-        orElse: () => {},
-      );
-
-      return {
-        "crop": item["commodity"] ?? item["crop"] ?? "",
-        "market": item["market"] ?? "",
-        "state": item["state"] ?? match["state"] ?? "",
-        "district": item["district"] ?? match["district"] ?? "N/A",
-        "price": item["modal_price"] ?? item["price"] ?? "0",
-        "date": item["arrival_date"] ??
-                match["arrival_date"] ??
-                "N/A",
-
-        // 🔥 NEW DATA (important)
-        "min_price": match["min_price"] ?? "N/A",
-        "max_price": match["max_price"] ?? "N/A",
-      };
+    // 🔥 FILTER LOCALLY
+    List filtered = allData.where((item) {
+      String commodity =
+          item["commodity"].toString().toLowerCase();
+      return commodity.contains(searchCrop);
     }).toList();
 
-    return mergedData;
+    print("FILTERED: ${filtered.length}");
+
+    return filtered.map((g) {
+      return {
+        "crop": g["commodity"] ?? "",
+        "market": g["market"] ?? "",
+        "state": g["state"] ?? "",
+        "district": g["district"] ?? "",
+        "price": g["modal_price"] ?? "0",
+        "date": g["arrival_date"] ?? "N/A",
+        "min_price": g["min_price"] ?? "N/A",
+        "max_price": g["max_price"] ?? "N/A",
+      };
+    }).toList();
 
   } catch (e) {
     print("Error: $e");
@@ -96,40 +86,57 @@ static Future<List<dynamic>> searchCrop(String crop) async {
 }
 
   // ================= 🔥 REAL PRICE HISTORY =================
-  static Future<List<double>> getPriceHistory(String crop) async {
-    try {
-      String translatedCrop = translateCropName(crop);
+static Future<List<double>> getPriceHistory(String crop) async {
+  try {
+    String searchCrop = crop.toLowerCase();
 
-      final url =
-          "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070"
-          "?api-key=$agmarknetApiKey"
-          "&format=json"
-          "&filters[commodity]=$translatedCrop"
-          "&limit=10";
+    final url =
+        "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070"
+        "?api-key=$agmarknetApiKey"
+        "&format=json"
+        "&limit=200";
 
-      final response = await http
-          .get(Uri.parse(url))
-          .timeout(const Duration(seconds: 15));
+    final response = await http.get(Uri.parse(url));
 
-      if (response.statusCode == 200) {
-        final jsonData = jsonDecode(response.body);
+    if (response.statusCode != 200) return [];
 
-        List records = jsonData["records"] ?? [];
+    final jsonData = jsonDecode(response.body);
+    List records = jsonData["records"] ?? [];
 
-        List<double> prices = records.map((e) {
-          return double.tryParse(e["modal_price"].toString()) ?? 0.0;
-        }).toList();
+    // 🔥 FILTER + SORT BY DATE
+    List filtered = records.where((item) {
+      String commodity =
+          item["commodity"].toString().toLowerCase();
+      return commodity.contains(searchCrop);
+    }).toList();
 
-        return prices.reversed.toList(); // oldest → latest
-      } else {
-        print("History API Error: ${response.statusCode}");
-        return [];
+    filtered.sort((a, b) =>
+  a["state"].toString().compareTo(b["state"].toString()));
+
+    filtered.sort((a, b) {
+      return a["arrival_date"]
+          .toString()
+          .compareTo(b["arrival_date"].toString());
+    });
+
+    List<double> prices = [];
+
+    for (var e in filtered) {
+      double? price =
+          double.tryParse(e["modal_price"].toString());
+
+      if (price != null && price > 0) {
+        prices.add(price);
       }
-    } catch (e) {
-      print("Error in getPriceHistory: $e");
-      return [];
     }
+
+    return prices.take(20).toList();
+
+  } catch (e) {
+    print("Graph Error: $e");
+    return [];
   }
+}
 
   // ================= MULTI LANGUAGE SUPPORT =================
   static String translateCropName(String crop) {
