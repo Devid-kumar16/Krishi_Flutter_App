@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:agri_advisor/l10n/app_localizations.dart';
 import '../services/location_service.dart';
 import '../services/weather_service.dart';
 import '../widgets/bottom_nav.dart';
 import '../routes.dart';
+import '../main.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -15,6 +17,8 @@ class _HomeScreenState extends State<HomeScreen> {
   String temperature = "--";
   String weather = "Loading...";
 
+  TextEditingController cityController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
@@ -25,22 +29,22 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final position = await LocationService.getLocation();
 
-if (position == null) {
-  setState(() {
-    temperature = "--";
-    weather = "Location Off";
-  });
-  return;
-}
+      if (position == null) {
+        setState(() {
+          temperature = "--";
+          weather = "Location Off";
+        });
+        return;
+      }
 
-      final data = await WeatherService.getWeather(
+      final data = await WeatherService.getWeatherByLocation(
         position.latitude,
         position.longitude,
       );
 
       setState(() {
         temperature = "${data['main']['temp']}°C";
-        weather = data['weather'][0]['main'];
+        weather = data['weather'][0]['description'];
       });
     } catch (e) {
       setState(() {
@@ -50,35 +54,58 @@ if (position == null) {
     }
   }
 
+  void searchWeather() async {
+    if (cityController.text.isEmpty) return;
+
+    try {
+      final data = await WeatherService.getWeatherByCity(
+        cityController.text,
+      );
+
+      setState(() {
+        temperature = "${data['main']['temp']}°C";
+        weather = data['weather'][0]['description'];
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("City not found")),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
+    final loc = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6F8),
+
+      /// 🔹 APP BAR
       appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
         title: const Text(
           "Krishi",
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
+
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_none_outlined),
-            onPressed: () {},
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.language), // 🌍 icon
+            onSelected: (value) {
+              if (value == 'en') {
+                MyApp.setLocale(context, const Locale('en'));
+              } else {
+                MyApp.setLocale(context, const Locale('hi'));
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(value: 'en', child: Text("English")),
+              const PopupMenuItem(value: 'hi', child: Text("हिंदी")),
+            ],
           ),
-          const SizedBox(width: 8),
-          const CircleAvatar(
-            radius: 18,
-            backgroundColor: Color(0xFFE8F5E9),
-            child: Icon(Icons.person, color: Colors.green),
-          ),
-          const SizedBox(width: 16),
         ],
       ),
 
+      /// 🔹 BODY
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -86,242 +113,193 @@ if (position == null) {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
 
-              /// 🔹 Welcome Section
-              const Text(
-                "Welcome",
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                ),
+              /// 🔹 Welcome
+              Text(
+                loc.welcome ?? "Welcome",
+                style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
               ),
-
               const SizedBox(height: 6),
-
-              const Text(
-                "Manage your farm smartly",
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey,
-                ),
+              Text(
+                loc.subtitle ?? "Manage your farm smartly",
+                style: const TextStyle(color: Colors.grey),
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
 
-              /// 🔹 Feature Grid
-              GridView.count(
-                crossAxisCount: size.width > 900
-                    ? 4
-                    : size.width > 600
-                        ? 3
-                        : 2,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                childAspectRatio: 1.1,
+              /// 🔍 Search Bar
+              Row(
                 children: [
-                  _buildCard(
-                    context,
-                    icon: Icons.camera_alt_outlined,
-                    title: "Disease Detection",
-                    color: const Color(0xFF2E7D32),
-                    route: AppRoutes.disease,
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.green),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: TextField(
+                        controller: cityController,
+                        decoration: InputDecoration(
+                          hintText: loc.search ?? "Search city...",
+                          border: InputBorder.none,
+                          icon: const Icon(Icons.search),
+                        ),
+                      ),
+                    ),
                   ),
-                  _buildCard(
-                    context,
-                    icon: Icons.smart_toy_outlined,
-                    title: "AI Advisory",
-                    color: const Color(0xFF1565C0),
-                    route: AppRoutes.advisory,
-                  ),
-                  _buildCard(
-                    context,
-                    icon: Icons.storefront_outlined,
-                    title: "Market Prices",
-                    color: const Color(0xFFF57C00),
-                    route: AppRoutes.market,
-                  ),
-                  _buildCard(
-                    context,
-                    icon: Icons.person_outline,
-                    title: "Profile",
-                    color: const Color(0xFF616161),
-                    route: AppRoutes.profile,
-                  ),
+                  const SizedBox(width: 10),
+                  ElevatedButton(
+                    onPressed: searchWeather,
+                    child: const Text("Go"),
+                  )
                 ],
               ),
 
-              const SizedBox(height: 30),
+              const SizedBox(height: 20),
 
-              /// 🔹 AI Tip Banner
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(18),
-                  gradient: const LinearGradient(
-                    colors: [
-                      Color(0xFF2E7D32),
-                      Color(0xFF66BB6A),
-                    ],
-                  ),
-                ),
-                child: Row(
-                  children: const [
-                    Icon(Icons.eco, color: Colors.white, size: 36),
-                    SizedBox(width: 16),
-                    Expanded(
-                      child: Text(
-                        "Get daily farming tips and AI-powered insights to improve your crop yield.",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                        ),
-                      ),
-                    )
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 30),
-
-              /// 🌤 Weather Section (DYNAMIC)
+              /// 🌤 WEATHER
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(18),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          "Today's Weather",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            loc.weather ?? "Weather",
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 16),
                           ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          "$temperature • $weather",
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey,
+                          const SizedBox(height: 6),
+                          Text("$temperature • $weather"),
+                          const SizedBox(height: 6),
+                          Text(
+                            weather.toLowerCase().contains("rain")
+                                ? (loc.avoid ?? "Avoid spraying")
+                                : (loc.good ?? "Good for farming"),
+                            style: const TextStyle(color: Colors.green),
                           ),
-                        ),
-                        const SizedBox(height: 6),
-
-                        /// 🌾 Smart Farming Advice
-                        Text(
-                          weather.toLowerCase().contains("rain")
-                              ? "⚠️ Avoid spraying pesticides"
-                              : "✅ Good for farming activities",
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.green,
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    /// 🌤 Dynamic Icon
-                    Icon(
-                      weather.toLowerCase().contains("rain")
-                          ? Icons.cloud
-                          : weather.toLowerCase().contains("cloud")
-                              ? Icons.cloud_queue
-                              : Icons.wb_sunny,
-                      color: Colors.orange,
-                      size: 36,
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              /// 📊 Crop Health Summary
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    Text(
-                      "Crop Health Summary",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                        ],
                       ),
                     ),
-                    SizedBox(height: 12),
-                    LinearProgressIndicator(
-                      value: 0.75,
-                      minHeight: 8,
-                      borderRadius:
-                          BorderRadius.all(Radius.circular(20)),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      "Overall crop health is good (75%)",
-                      style: TextStyle(color: Colors.grey),
-                    ),
+                    const Icon(Icons.wb_sunny, size: 36),
                   ],
                 ),
               ),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 25),
 
-              /// 🖼 Farming Banner Image
-              ClipRRect(
-                borderRadius: BorderRadius.circular(18),
-                child: Image.asset(
-                  "assets/farm_banner.jpg",
-                  height: 170,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
+        /// 🔹 FEATURE GRID
+        GridView.count(
+          crossAxisCount: 2,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          children: [
+            _buildCard(context,
+                icon: Icons.camera_alt_outlined,
+                title: "Disease Detection",
+                color: const Color(0xFF2E7D32),
+                route: AppRoutes.disease),
+            _buildCard(context,
+                icon: Icons.smart_toy_outlined,
+                title: "AI Advisory",
+                color: const Color(0xFF1565C0),
+                route: AppRoutes.advisory),
+            _buildCard(context,
+                icon: Icons.storefront_outlined,
+                title: "Market Prices",
+                color: const Color(0xFFF57C00),
+                route: AppRoutes.market),
+            _buildCard(context,
+                icon: Icons.person_outline,
+                title: "Profile",
+                color: const Color(0xFF616161),
+                route: AppRoutes.profile),
+          ],
+        ),
+
+        const SizedBox(height: 30),
+
+        /// 🔹 AI Banner
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            gradient: const LinearGradient(
+              colors: [Color(0xFF2E7D32), Color(0xFF66BB6A)],
+            ),
+          ),
+          child: Row(
+            children: const [
+              Icon(Icons.eco, color: Colors.white, size: 36),
+              SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  "Get daily farming tips and AI-powered insights to improve your crop yield.",
+                  style: TextStyle(color: Colors.white),
                 ),
-              ),
-
-              const SizedBox(height: 40),
+              )
             ],
           ),
         ),
-      ),
 
-      bottomNavigationBar:
-          const BottomNavBar(currentIndex: 0),
+        const SizedBox(height: 20),
+
+        /// 📊 Crop Health (RESTORED)
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: const [
+              Text("Crop Health Summary",
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              SizedBox(height: 10),
+              LinearProgressIndicator(value: 0.75),
+              SizedBox(height: 8),
+              Text("Overall crop health is good (75%)"),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 20),
+
+        /// 🖼 Banner (RESTORED)
+        ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: Image.asset(
+            "assets/farm_banner.jpg",
+            height: 170,
+            width: double.infinity,
+            fit: BoxFit.cover,
+          ),
+        ),
+
+        const SizedBox(height: 80), // 🔥 IMPORTANT (prevents cut)
+      ],
+    ),
+  ),
+),
+
+      bottomNavigationBar: const BottomNavBar(currentIndex: 0),
     );
   }
 
-  /// 🔹 Feature Card UI
-  Widget _buildCard(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required Color color,
-    required String route,
-  }) {
+  Widget _buildCard(BuildContext context,
+      {required IconData icon,
+      required String title,
+      required Color color,
+      required String route}) {
     return InkWell(
       borderRadius: BorderRadius.circular(20),
       onTap: () => Navigator.pushNamed(context, route),
@@ -329,39 +307,14 @@ if (position == null) {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
         ),
-        child: Padding(
-          padding:
-              const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: color.withOpacity(0.12),
-                ),
-                child: Icon(icon, color: color, size: 28),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: color, size: 28),
+            const SizedBox(height: 10),
+            Text(title),
+          ],
         ),
       ),
     );

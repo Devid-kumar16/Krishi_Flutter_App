@@ -5,7 +5,7 @@ import 'api_config.dart';
 class MarketService {
 
   // 🔑 Replace with your real Data.gov API key
-  static const String agmarknetApiKey = "579b464db66ec23bdd000001ac3ddec914f74b546477ab9b011094c7";
+  static const String agmarknetApiKey = "579b464db66ec23bdd0000011c30106f268549e6651c74fe4297af2d";
 
   // ================= FETCH ALL CROPS =================
   static Future<List<dynamic>> getAllMarketData() async {

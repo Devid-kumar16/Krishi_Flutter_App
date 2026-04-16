@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:agri_advisor/l10n/app_localizations.dart';
 import '../routes.dart';
 import '../services/auth_service.dart';
+import '../main.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -15,7 +17,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
-  bool isHindi = false;
   bool isLoading = false;
 
   Future<void> handleLogin() async {
@@ -29,33 +30,24 @@ class _LoginScreenState extends State<LoginScreen> {
         passwordController.text.trim(),
       ).timeout(const Duration(seconds: 10));
 
-      print("✅ LOGIN RESPONSE: $result");
+      if (result["success"] == true) {
+        if (!mounted) return;
 
-      // 🔥 SAFE VALIDATION
-      if (result != null &&
-          result is Map &&
-          result.containsKey("success")) {
-        
-        if (result["success"] == true) {
-          if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)!.login,
+            ),
+          ),
+        );
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Login Successful")),
-          );
-
-          Navigator.pushReplacementNamed(context, AppRoutes.home);
-        } else {
-          showError(result["message"] ?? "Invalid credentials");
-        }
-
+        Navigator.pushReplacementNamed(context, AppRoutes.home);
       } else {
-        showError("Invalid server response");
+        showError(result["message"] ?? "Error");
       }
-
     } on TimeoutException {
-      showError("Server timeout. Check backend.");
+      showError("Server timeout");
     } catch (e) {
-      print("❌ LOGIN ERROR: $e");
       showError("Cannot connect to server");
     }
 
@@ -82,7 +74,30 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+
     return Scaffold(
+      appBar: AppBar(
+        title: Text(loc.login),
+
+        // 🌍 LANGUAGE SWITCH BUTTON
+        actions: [
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'en') {
+                MyApp.setLocale(context, const Locale('en'));
+              } else {
+                MyApp.setLocale(context, const Locale('hi'));
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(value: 'en', child: Text("English")),
+              const PopupMenuItem(value: 'hi', child: Text("हिंदी")),
+            ],
+          ),
+        ],
+      ),
+
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -98,9 +113,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 20),
 
                 Text(
-                  isHindi
-                      ? "कृषि ऐप में लॉगिन करें"
-                      : "Login to Krishi",
+                  loc.appTitle,
                   style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
@@ -115,7 +128,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   keyboardType: TextInputType.emailAddress,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return "Enter Email";
+                      return loc.email;
                     }
                     if (!value.contains("@")) {
                       return "Invalid Email";
@@ -123,11 +136,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     return null;
                   },
                   decoration: InputDecoration(
-                    labelText: isHindi ? "ईमेल" : "Email",
+                    labelText: loc.email,
                     prefixIcon: const Icon(Icons.email),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
                   ),
                 ),
 
@@ -139,14 +149,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   obscureText: true,
                   validator: (value) =>
                       value == null || value.isEmpty
-                          ? "Enter Password"
+                          ? loc.password
                           : null,
                   decoration: InputDecoration(
-                    labelText: isHindi ? "पासवर्ड" : "Password",
+                    labelText: loc.password,
                     prefixIcon: const Icon(Icons.lock),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
                   ),
                 ),
 
@@ -158,14 +165,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   height: 50,
                   child: ElevatedButton(
                     onPressed: isLoading ? null : handleLogin,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                    ),
                     child: isLoading
                         ? const CircularProgressIndicator(
                             color: Colors.white)
                         : Text(
-                            isHindi ? "लॉगिन करें" : "Login",
+                            loc.login,
                             style: const TextStyle(fontSize: 16),
                           ),
                   ),
@@ -178,9 +182,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     Navigator.pushNamed(context, AppRoutes.signup);
                   },
                   child: Text(
-                    isHindi
-                        ? "नया खाता बनाएं"
-                        : "Don't have an account? Sign Up",
+                    loc.signup,
                   ),
                 ),
               ],

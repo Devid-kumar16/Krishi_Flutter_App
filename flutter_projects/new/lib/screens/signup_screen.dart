@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:agri_advisor/l10n/app_localizations.dart';
 import '../services/auth_service.dart';
 import '../routes.dart';
+import '../main.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -21,28 +23,39 @@ class _SignupScreenState extends State<SignupScreen> {
   Future<void> handleSignup() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final name = nameController.text.trim();
+    final email = emailController.text.trim();
+    final password = passwordController.text.trim();
+
+    if (name.isEmpty || email.isEmpty || password.isEmpty) {
+      showMessage("All fields required");
+      return;
+    }
+
     setState(() => isLoading = true);
 
-    final result = await AuthService.signup(
-      nameController.text.trim(),
-      emailController.text.trim(),
-      passwordController.text.trim(),
-    );
+    try {
+      final result = await AuthService.signup(name, email, password);
 
-    setState(() => isLoading = false);
+      setState(() => isLoading = false);
 
-    // ✅ FIXED CONDITION
-    if (result["success"] == true) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Account created successfully")),
-      );
+      if (result["success"] == true) {
+        showMessage("Account created successfully");
 
-      Navigator.pushReplacementNamed(context, AppRoutes.login);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result["message"] ?? "Signup failed")),
-      );
+        Navigator.pushReplacementNamed(context, AppRoutes.login);
+      } else {
+        showMessage(result["message"] ?? "Signup failed");
+      }
+    } catch (e) {
+      setState(() => isLoading = false);
+      showMessage("Server error, try again");
     }
+  }
+
+  void showMessage(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg)),
+    );
   }
 
   @override
@@ -55,13 +68,31 @@ class _SignupScreenState extends State<SignupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+
     return Scaffold(
-      backgroundColor: Colors.green.shade50,
       appBar: AppBar(
-        backgroundColor: Colors.green,
-        title: const Text("Sign Up"),
+        title: Text(loc.signup),
+
+        // 🌍 LANGUAGE SWITCH
+        actions: [
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'en') {
+                MyApp.setLocale(context, const Locale('en'));
+              } else {
+                MyApp.setLocale(context, const Locale('hi'));
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(value: 'en', child: Text("English")),
+              const PopupMenuItem(value: 'hi', child: Text("हिंदी")),
+            ],
+          ),
+        ],
       ),
-      body: Padding(
+
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Form(
           key: _formKey,
@@ -72,13 +103,12 @@ class _SignupScreenState extends State<SignupScreen> {
               TextFormField(
                 controller: nameController,
                 validator: (value) =>
-                    value == null || value.isEmpty
-                        ? "Enter full name"
+                    value == null || value.trim().isEmpty
+                        ? "Enter name"
                         : null,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: "Full Name",
-                  prefixIcon: Icon(Icons.person),
-                  border: OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.person),
                 ),
               ),
 
@@ -86,14 +116,19 @@ class _SignupScreenState extends State<SignupScreen> {
 
               TextFormField(
                 controller: emailController,
-                validator: (value) =>
-                    value == null || value.isEmpty
-                        ? "Enter email"
-                        : null,
-                decoration: const InputDecoration(
-                  labelText: "Email",
-                  prefixIcon: Icon(Icons.email),
-                  border: OutlineInputBorder(),
+                keyboardType: TextInputType.emailAddress,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return loc.email;
+                  }
+                  if (!value.contains("@")) {
+                    return "Invalid email";
+                  }
+                  return null;
+                },
+                decoration: InputDecoration(
+                  labelText: loc.email,
+                  prefixIcon: const Icon(Icons.email),
                 ),
               ),
 
@@ -104,12 +139,11 @@ class _SignupScreenState extends State<SignupScreen> {
                 obscureText: true,
                 validator: (value) =>
                     value == null || value.length < 6
-                        ? "Password must be 6+ characters"
+                        ? loc.password
                         : null,
-                decoration: const InputDecoration(
-                  labelText: "Password",
-                  prefixIcon: Icon(Icons.lock),
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: loc.password,
+                  prefixIcon: const Icon(Icons.lock),
                 ),
               ),
 
@@ -120,14 +154,12 @@ class _SignupScreenState extends State<SignupScreen> {
                 height: 50,
                 child: ElevatedButton(
                   onPressed: isLoading ? null : handleSignup,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                  ),
                   child: isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text(
-                          "Create Account",
-                          style: TextStyle(fontSize: 18),
+                      ? const CircularProgressIndicator(
+                          color: Colors.white)
+                      : Text(
+                          loc.signup,
+                          style: const TextStyle(fontSize: 16),
                         ),
                 ),
               ),
@@ -139,7 +171,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   Navigator.pushReplacementNamed(
                       context, AppRoutes.login);
                 },
-                child: const Text("Already have an account? Login"),
+                child: Text(loc.login),
               ),
             ],
           ),

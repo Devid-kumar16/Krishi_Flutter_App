@@ -3,6 +3,8 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:fl_chart/fl_chart.dart';
 import '../services/market_services.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 class MarketScreen extends StatefulWidget {
   const MarketScreen({super.key});
@@ -11,8 +13,26 @@ class MarketScreen extends StatefulWidget {
   State<MarketScreen> createState() => _MarketScreenState();
 }
 
-class _MarketScreenState extends State<MarketScreen> {
+String translateToHindi(String text) {
+  const Map<String, String> map = {
+    "Tomato": "टमाटर",
+    "Potato": "आलू",
+    "Onion": "प्याज",
+    "Maharashtra": "महाराष्ट्र",
+    "APMC": "मंडी",
+    "Market": "बाजार",
+    "State": "राज्य",
+    "District": "जिला",
+    "Price": "कीमत",
+    "Date": "तारीख",
+    "Min Price": "न्यूनतम कीमत",
+    "Max Price": "अधिकतम कीमत",
+  };
 
+  return map[text] ?? text;
+}
+
+class _MarketScreenState extends State<MarketScreen> {
   final TextEditingController searchController = TextEditingController();
   final stt.SpeechToText speech = stt.SpeechToText();
 
@@ -31,45 +51,78 @@ class _MarketScreenState extends State<MarketScreen> {
     fetchMarketData(crop: "Tomato");
   }
 
-Future<void> fetchMarketData({String crop = "Tomato"}) async {
-  setState(() => isLoading = true);
+    // ================= 🔥 AUTO TRANSLATION =================
+  Future<String> translate(String text) async {
+    if (!isHindi) return text;
 
-  try {
-    // ✅ FIX 1: Clean input BEFORE API call
-    crop = crop.trim();
+    try {
+      final url =
+          "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=hi&dt=t&q=${Uri.encodeComponent(text)}";
 
-    if (crop.isEmpty) {
-      crop = "Tomato";
-    } else {
-      crop =
-          crop[0].toUpperCase() + crop.substring(1).toLowerCase();
+      final response = await http.get(Uri.parse(url));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data[0][0][0];
+      }
+    } catch (e) {
+      print("Translation error: $e");
     }
 
-    print("SEARCHING FOR: $crop");
-
-    final data = await MarketService.searchCrop(crop);
-
-    print("DATA LENGTH: ${data.length}");
-
-    setState(() {
-      marketData = data;
-      isLoading = false;
-      futurePrices = MarketService.getPriceHistory(crop);
-    });
-
-  } catch (e) {
-    print("FETCH ERROR: $e");
-
-    setState(() {
-      marketData = [];
-      isLoading = false;
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Failed to load data")),
-    );
+    return text;
   }
-}
+
+  Future<void> fetchMarketData({String crop = "Tomato"}) async {
+    setState(() => isLoading = true);
+
+    try {
+      // ✅ FIX 1: Clean input BEFORE API call
+      crop = crop.trim();
+
+      if (crop.isEmpty) {
+        crop = "Tomato";
+      } else {
+        crop = crop[0].toUpperCase() + crop.substring(1).toLowerCase();
+      }
+
+      print("SEARCHING FOR: $crop");
+
+      // Convert Hindi → English for API search inputs
+      Map<String, String> reverseMap = {
+        "टमाटर": "Tomato",
+        "आलू": "Potato",
+        "प्याज": "Onion",
+        "बैंगन": "Brinjal",
+      };
+
+      if (reverseMap.containsKey(crop)) {
+        crop = reverseMap[crop]!;
+      }
+
+      final data = await MarketService.searchCrop(crop);
+
+      print("DATA LENGTH: ${data.length}");
+
+      setState(() {
+        marketData = data;
+        isLoading = false;
+        futurePrices = MarketService.getPriceHistory(crop);
+      });
+    } catch (e) {
+      print("FETCH ERROR: $e");
+
+      if (!mounted) return;
+
+      setState(() {
+        marketData = [];
+        isLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Failed to load data")),
+      );
+    }
+  }
 
   // ================= VOICE SEARCH =================
   Future<void> startVoiceSearch() async {
@@ -86,15 +139,14 @@ Future<void> fetchMarketData({String crop = "Tomato"}) async {
 
     String result = speech.lastRecognizedWords.trim();
 
-// 🔥 CLEAN INPUT
-result = result.split(" ").first; // remove extra words
+    // 🔥 CLEAN INPUT
+    if (result.isNotEmpty) {
+      result = result.split(" ").first;
+    }
 
-print("VOICE INPUT: $result");
+    print("VOICE INPUT: $result");
 
-searchController.text = result;
-fetchMarketData(crop: result);
     searchController.text = result;
-
     fetchMarketData(crop: result);
   }
 
@@ -105,7 +157,6 @@ fetchMarketData(crop: result);
     return FutureBuilder<List<double>>(
       future: futurePrices,
       builder: (context, snapshot) {
-
         if (!snapshot.hasData) {
           return const Padding(
             padding: EdgeInsets.all(16),
@@ -147,14 +198,16 @@ fetchMarketData(crop: result);
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => MarketDetailScreen(data: item),
+        builder: (context) => MarketDetailScreen(
+          data: item,
+          isHindi: isHindi,
+        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       appBar: AppBar(
         title: Text(isHindi ? "मंडी भाव" : "Market Prices"),
@@ -171,7 +224,6 @@ fetchMarketData(crop: result);
         onRefresh: () => fetchMarketData(crop: searchController.text),
         child: Column(
           children: [
-
             // 🔍 SEARCH BAR
             Padding(
               padding: const EdgeInsets.all(12),
@@ -181,9 +233,7 @@ fetchMarketData(crop: result);
                     child: TextField(
                       controller: searchController,
                       decoration: InputDecoration(
-                        hintText: isHindi
-                            ? "फसल खोजें..."
-                            : "Search crop...",
+                        hintText: isHindi ? "फसल खोजें..." : "Search crop...",
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -206,66 +256,101 @@ fetchMarketData(crop: result);
             if (!isLoading) buildGraph(),
 
             // 📋 LIST
-            Expanded(
-              child: isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : marketData.isEmpty && !isLoading
-                      ? Center(
-  child: Column(
-    mainAxisAlignment: MainAxisAlignment.center,
-    children: [
-      const Icon(Icons.search_off, size: 60, color: Colors.grey),
-      const SizedBox(height: 10),
-      Text(isHindi ? "कोई डेटा नहीं मिला" : "No market data found"),
-      const SizedBox(height: 10),
-      ElevatedButton(
-        onPressed: () {
-          fetchMarketData(crop: searchController.text);
-        },
-        child: const Text("Retry"),
-      )
-    ],
-  ),
-)
-                      : ListView.builder(
-                          itemCount: marketData.length,
-                          itemBuilder: (context, index) {
+Expanded(
+  child: isLoading
+      ? const Center(child: CircularProgressIndicator())
+      : marketData.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.search_off,
+                      size: 60, color: Colors.grey),
+                  const SizedBox(height: 10),
+                  Text(
+                    isHindi
+                        ? "कोई डेटा नहीं मिला"
+                        : "No market data found",
+                  ),
+                  const SizedBox(height: 10),
+                  ElevatedButton(
+                    onPressed: () {
+                      fetchMarketData(
+                          crop: searchController.text);
+                    },
+                    child: const Text("Retry"),
+                  )
+                ],
+              ),
+            )
+          : ListView.builder(
+              itemCount: marketData.length,
+              itemBuilder: (context, index) {
+                final item = marketData[index];
 
-                            final item = marketData[index];
+                // ✅ SAFE VALUES (NO CRASH)
+                final crop =
+                    (item["crop"] ?? "").toString();
+                final market =
+                    (item["market"] ?? "").toString();
+                final state =
+                    (item["state"] ?? "").toString();
+                final price =
+                    (item["price"] ?? "").toString();
 
-                            return InkWell(
-                              onTap: () => openDetails(item),
-                              child: Card(
-                                margin: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 6),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                elevation: 3,
-                                child: ListTile(
-                                  leading: const Icon(
-                                      Icons.agriculture,
-                                      color: Colors.green),
-                                  title: Text(
-                                    item["crop"] ?? "",
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.bold),
-                                  ),
-                                  subtitle: Text(
-                                      "${item["market"]}, ${item["state"]}"),
-                                  trailing: Text(
-                                    "₹${item["price"]}",
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.green,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
+                return InkWell(
+                  onTap: () => openDetails(item),
+                  child: Card(
+                    margin: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 6),
+                    shape: RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.circular(12),
+                    ),
+                    elevation: 3,
+                    child: ListTile(
+                      leading: const Icon(
+                        Icons.agriculture,
+                        color: Colors.green,
+                      ),
+
+                      // ✅ FIXED (NO ERROR)
+title: FutureBuilder<String>(
+  future: translate(crop),
+  builder: (context, snapshot) {
+    return Text(
+      snapshot.data ?? (isHindi ? translateToHindi(crop) : crop),
+      style: const TextStyle(fontWeight: FontWeight.bold),
+    );
+  },
+),
+
+
+subtitle: FutureBuilder<String>(
+  future: translate("$market, $state"),
+  builder: (context, snapshot) {
+    return Text(
+      snapshot.data ??
+          (isHindi
+              ? "${translateToHindi(market)}, ${translateToHindi(state)}"
+              : "$market, $state"),
+    );
+  },
+),
+
+                      trailing: Text(
+                        "₹$price",
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green,
                         ),
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
+)
           ],
         ),
       ),
@@ -279,16 +364,25 @@ fetchMarketData(crop: result);
 
 class MarketDetailScreen extends StatefulWidget {
   final dynamic data;
+  final bool isHindi;
 
-  const MarketDetailScreen({super.key, required this.data});
+  const MarketDetailScreen({
+    super.key,
+    required this.data,
+    required this.isHindi,
+  });
 
   @override
   State<MarketDetailScreen> createState() => _MarketDetailScreenState();
 }
 
-class _MarketDetailScreenState extends State<MarketDetailScreen> {
+String getCurrentDate() {
+  final now = DateTime.now();
+  return "${now.day}/${now.month}/${now.year}";
+}
 
-  bool isHindi = false;
+class _MarketDetailScreenState extends State<MarketDetailScreen> {
+  late bool isHindi;
   final FlutterTts tts = FlutterTts();
 
   Future<List<double>>? futurePrices;
@@ -296,28 +390,32 @@ class _MarketDetailScreenState extends State<MarketDetailScreen> {
   @override
   void initState() {
     super.initState();
+    isHindi = widget.isHindi;
 
     // ✅ REAL GRAPH DATA
     futurePrices =
         MarketService.getPriceHistory(widget.data["crop"].toString());
   }
 
-String getValue(String key) {
-  final value = widget.data[key];
+  String getValue(String key) {
+    final value = widget.data[key];
 
-  if (value == null ||
-      value.toString().trim().isEmpty ||
-      value.toString().toLowerCase() == "null") {
-    return "Not Available";
+    if (value == null ||
+        value.toString().trim().isEmpty ||
+        value.toString().toLowerCase() == "null") {
+      return "Not Available";
+    }
+
+    return value.toString();
   }
 
-  return value.toString();
-}
-
   Future<void> speak() async {
+    final crop = getValue("crop");
+    final displayCrop = isHindi ? translateToHindi(crop) : crop;
+
     String text = isHindi
-        ? "फसल ${getValue("crop")} कीमत ${getValue("price")} रुपए"
-        : "Crop ${getValue("crop")} price ${getValue("price")} rupees";
+        ? "फसल $displayCrop कीमत ${getValue("price")} रुपए"
+        : "Crop $displayCrop price ${getValue("price")} rupees";
 
     await tts.setLanguage(isHindi ? "hi-IN" : "en-US");
     await tts.speak(text);
@@ -327,7 +425,6 @@ String getValue(String key) {
     return FutureBuilder<List<double>>(
       future: futurePrices,
       builder: (context, snapshot) {
-
         if (!snapshot.hasData) {
           return const CircularProgressIndicator();
         }
@@ -362,16 +459,18 @@ String getValue(String key) {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       appBar: AppBar(
         title: Text(isHindi ? "मंडी विवरण" : "Market Details"),
         actions: [
           IconButton(
             icon: const Icon(Icons.language),
-            onPressed: () {
-              setState(() => isHindi = !isHindi);
-            },
+ onPressed: () {
+  setState(() {
+    isHindi = !isHindi;
+  });
+
+},
           ),
           IconButton(
             icon: const Icon(Icons.volume_up),
@@ -379,12 +478,10 @@ String getValue(String key) {
           ),
         ],
       ),
-
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-
             // HEADER
             Container(
               padding: const EdgeInsets.all(16),
@@ -396,12 +493,13 @@ String getValue(String key) {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.agriculture,
-                      color: Colors.white, size: 40),
+                  const Icon(Icons.agriculture, color: Colors.white, size: 40),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      getValue("crop"),
+                      isHindi
+                          ? translateToHindi(getValue("crop"))
+                          : getValue("crop"),
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 20,
@@ -428,36 +526,41 @@ String getValue(String key) {
             const SizedBox(height: 16),
 
             // DETAILS
-buildTile(Icons.store, "Market", getValue("market")),
-buildTile(Icons.location_on, "State", getValue("state")),
-buildTile(Icons.map, "District", getValue("district")),
-buildTile(Icons.currency_rupee, "Price", "₹${getValue("price")}"),
-buildTile(Icons.calendar_today, "Date", getValue("date")),
+            buildTile(Icons.store, "Market", getValue("market")),
+            buildTile(Icons.location_on, "State", getValue("state")),
+            buildTile(Icons.map, "District", getValue("district")),
+            buildTile(Icons.currency_rupee, "Price", "₹${getValue("price")}"),
+            buildTile(Icons.calendar_today, "Date", getCurrentDate()),
 
 // 🔥 NEW (if available)
-buildTile(Icons.trending_up, "Min Price", getValue("min_price")),
-buildTile(Icons.trending_down, "Max Price", getValue("max_price")),
+            buildTile(Icons.trending_up, "Min Price", getValue("min_price")),
+            buildTile(Icons.trending_down, "Max Price", getValue("max_price")),
           ],
         ),
       ),
     );
   }
 
-  Widget buildTile(IconData icon, String label, String value) {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 6),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.green),
-          const SizedBox(width: 10),
-          Expanded(child: Text("$label: $value")),
-        ],
-      ),
-    );
-  }
+Widget buildTile(IconData icon, String label, String value) {
+  final displayLabel = isHindi ? translateToHindi(label) : label;
+  final displayValue = isHindi ? translateToHindi(value) : value;
+
+  return Container(
+    margin: const EdgeInsets.symmetric(vertical: 6),
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: Colors.grey.shade100,
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Row(
+      children: [
+        Icon(icon, color: Colors.green),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text("$displayLabel: $displayValue"),
+        ),
+      ],
+    ),
+  );
+}
 }

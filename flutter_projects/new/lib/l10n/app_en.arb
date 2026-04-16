@@ -1,0 +1,26 @@
+{
+  "appTitle": "Krishi AI",
+  "login": "Login",
+  "signup": "Signup",
+  "email": "Email",
+  "password": "Password",
+
+  "welcome": "Welcome",
+  "subtitle": "Manage your farm smartly",
+  "weather": "Today's Weather",
+  "good": "Good for farming activities",
+  "avoid": "Avoid spraying pesticides",
+  "search": "Search city...",
+
+  "fullName": "Full Name",
+  "chat": "AI Advisory",
+
+  "disease": "Disease",
+  "confidence": "Confidence",
+  "recommendation": "Recommendation",
+  "camera": "Camera",
+  "gallery": "Gallery",
+
+  "detectDisease": "Detect Disease",
+  "detectionResult": "Detection Result"
+}

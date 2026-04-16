@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:agri_advisor/l10n/app_localizations.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:flutter_tts/flutter_tts.dart';
 import '../services/chat_service.dart';
+import '../main.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -12,13 +14,13 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController controller = TextEditingController();
+  final ScrollController scrollController = ScrollController();
+
   List<Map<String, String>> messages = [];
 
-  // 🎤 Speech
   late stt.SpeechToText speech;
   bool isListening = false;
 
-  // 🔊 TTS
   final FlutterTts tts = FlutterTts();
 
   bool isLoading = false;
@@ -29,6 +31,10 @@ class _ChatScreenState extends State<ChatScreen> {
     speech = stt.SpeechToText();
   }
 
+  /// 🌍 GET CURRENT LANGUAGE (GLOBAL)
+  String get currentLang =>
+      Localizations.localeOf(context).languageCode;
+
   /// 🎤 Start voice input
   void startListening() async {
     bool available = await speech.initialize();
@@ -37,13 +43,21 @@ class _ChatScreenState extends State<ChatScreen> {
       setState(() => isListening = true);
 
       speech.listen(
+        localeId: currentLang == "hi" ? "hi_IN" : "en_IN",
         onResult: (result) {
           setState(() {
             controller.text = result.recognizedWords;
           });
         },
       );
+
+      Future.delayed(const Duration(seconds: 5), stopListening);
     }
+  }
+
+  void stopListening() async {
+    await speech.stop();
+    setState(() => isListening = false);
   }
 
   /// 💬 Send message
@@ -57,31 +71,71 @@ class _ChatScreenState extends State<ChatScreen> {
     });
 
     controller.clear();
+    scrollToBottom();
 
-    final reply = await ChatService.sendMessage(text);
+    final reply = await ChatService.sendMessage(
+      text,
+      language: currentLang, // ✅ FIXED
+    );
 
     setState(() {
       messages.add({"role": "bot", "text": reply});
       isLoading = false;
     });
 
-    // 🔊 Speak response
+    scrollToBottom();
+
+    /// 🔊 Speak in selected language
+    await tts.setLanguage(currentLang == "hi" ? "hi-IN" : "en-US");
     await tts.speak(reply);
+  }
+
+  void scrollToBottom() {
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (scrollController.hasClients) {
+        scrollController.animateTo(
+          scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text("AI Advisory"),
-        backgroundColor: Colors.green,
+        title: Text(loc.chat),
+
+        /// 🌍 LANGUAGE SWITCH
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.language),
+            onSelected: (value) {
+              if (value == 'en') {
+                MyApp.setLocale(context, const Locale('en'));
+              } else {
+                MyApp.setLocale(context, const Locale('hi'));
+              }
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem(value: 'en', child: Text("English")),
+              PopupMenuItem(value: 'hi', child: Text("हिंदी")),
+            ],
+          ),
+        ],
       ),
+
       body: Column(
         children: [
 
-          /// 💬 Chat messages
+          /// 💬 CHAT LIST
           Expanded(
             child: ListView.builder(
+              controller: scrollController,
               padding: const EdgeInsets.all(10),
               itemCount: messages.length,
               itemBuilder: (context, index) {
@@ -100,24 +154,21 @@ class _ChatScreenState extends State<ChatScreen> {
                           : Colors.grey[300],
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    child: Text(
-                      msg["text"]!,
-                      style: const TextStyle(fontSize: 14),
-                    ),
+                    child: Text(msg["text"]!),
                   ),
                 );
               },
             ),
           ),
 
-          /// ⏳ Loading indicator
+          /// ⏳ LOADING
           if (isLoading)
             const Padding(
               padding: EdgeInsets.all(8),
               child: CircularProgressIndicator(),
             ),
 
-          /// ✍️ Input + Mic + Send
+          /// ✍️ INPUT
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             color: Colors.white,
@@ -126,23 +177,23 @@ class _ChatScreenState extends State<ChatScreen> {
                 Expanded(
                   child: TextField(
                     controller: controller,
-                    decoration: const InputDecoration(
-                      hintText: "Ask something...",
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      hintText: loc.chat,
+                      border: const OutlineInputBorder(),
                     ),
                   ),
                 ),
 
-                /// 🎤 Mic button
+                /// 🎤 MIC
                 IconButton(
                   icon: Icon(
                     isListening ? Icons.mic : Icons.mic_none,
                     color: Colors.green,
                   ),
-                  onPressed: startListening,
+                  onPressed: isListening ? stopListening : startListening,
                 ),
 
-                /// 📤 Send button
+                /// 📤 SEND
                 IconButton(
                   icon: const Icon(Icons.send, color: Colors.green),
                   onPressed: sendMessage,

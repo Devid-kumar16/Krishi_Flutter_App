@@ -14,9 +14,15 @@ const db = require("../config/db");
 // ================= SIGNUP =================
 router.post("/signup", async (req, res) => {
   try {
-    const { full_name, email, password } = req.body;
+    console.log("HEADERS:", req.headers); 
+    console.log("REQ BODY:", req.body); // 🔍 DEBUG
 
-    if (!full_name || !email || !password) {
+    // ✅ accept both "name" and "full_name"
+    const { name, full_name, email, password } = req.body;
+
+    const userName = name || full_name;
+
+    if (!userName || !email || !password) {
       return res.status(400).json({
         success: false,
         message: "All fields required",
@@ -49,7 +55,7 @@ router.post("/signup", async (req, res) => {
         VALUES (?, ?, ?, 1)
       `;
 
-      db.query(sql, [full_name, email, hashedPassword], (err, result) => {
+      db.query(sql, [userName, email, hashedPassword], (err, result) => {
         if (err) {
           console.error("INSERT ERROR:", err);
           return res.status(500).json({
@@ -116,7 +122,6 @@ router.post("/login", (req, res) => {
         });
       }
 
-      // 🔐 JWT
       const secret = process.env.JWT_SECRET || "fallback_secret";
 
       const token = jwt.sign(
@@ -128,7 +133,7 @@ router.post("/login", (req, res) => {
       return res.status(200).json({
         success: true,
         message: "Login successful",
-        token: token, // ✅ VERY IMPORTANT
+        token: token,
         user: {
           id: user.id,
           name: user.full_name,

@@ -6,65 +6,71 @@ import 'api_config.dart';
 class AuthService {
 
   // ================= LOGIN =================
-static Future<Map<String, dynamic>> login(
-    String email, String password) async {
-  try {
-    final response = await http.post(
-      Uri.parse(ApiConfig.login),
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode({
-        "email": email.trim(),
-        "password": password.trim(),
-      }),
-    );
+  static Future<Map<String, dynamic>> login(
+      String email, String password) async {
+    try {
+      final response = await http.post(
+        Uri.parse(ApiConfig.login),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "email": email.trim(),
+          "password": password.trim(),
+        }),
+      );
 
-    final data = jsonDecode(response.body);
+      final data = jsonDecode(response.body);
 
-    if (response.statusCode == 200 && data["success"] == true) {
-      final prefs = await SharedPreferences.getInstance();
+      if (response.statusCode == 200 && data["success"] == true) {
+        final prefs = await SharedPreferences.getInstance();
 
-      // ✅ SAVE TOKEN (VERY IMPORTANT)
-      await prefs.setString("token", data["token"]);
+        await prefs.setString("token", data["token"]);
 
-      // ✅ SAVE USER DATA
-      final user = data["user"];
+        final user = data["user"];
 
-      await prefs.setString("name", user["name"] ?? "");
-      await prefs.setString("email", user["email"] ?? "");
+        await prefs.setString("name", user["name"] ?? "");
+        await prefs.setString("email", user["email"] ?? "");
+
+        return {
+          "success": true,
+          "user": user,
+        };
+      }
 
       return {
-        "success": true,
-        "user": user,
+        "success": false,
+        "message": data["message"] ?? "Login failed",
+      };
+    } catch (e) {
+      print("LOGIN ERROR: $e");
+      return {
+        "success": false,
+        "message": "Server error",
       };
     }
-
-    return {
-      "success": false,
-      "message": data["message"] ?? "Login failed",
-    };
-  } catch (e) {
-    return {
-      "success": false,
-      "message": "Server error",
-    };
   }
-}
 
   // ================= SIGNUP =================
   static Future<Map<String, dynamic>> signup(
       String name, String email, String password) async {
     try {
+      final body = {
+        "name": name.trim(),   // ✅ MUST MATCH BACKEND FIX
+        "email": email.trim(),
+        "password": password.trim(),
+      };
+
+      print("SIGNUP REQUEST: $body"); // 🔍 DEBUG
+
       final response = await http
           .post(
-            Uri.parse(ApiConfig.signup), // ✅ FIXED
+            Uri.parse(ApiConfig.signup),
             headers: {"Content-Type": "application/json"},
-            body: jsonEncode({
-              "name": name.trim(),
-              "email": email.trim(),
-              "password": password.trim(),
-            }),
+            body: jsonEncode(body),
           )
           .timeout(const Duration(seconds: 15));
+
+      print("SIGNUP STATUS: ${response.statusCode}");
+      print("SIGNUP RESPONSE: ${response.body}");
 
       if (response.body.isEmpty) {
         return {"success": false, "message": "Empty server response"};
@@ -72,7 +78,8 @@ static Future<Map<String, dynamic>> login(
 
       final data = jsonDecode(response.body);
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
+      // ✅ IMPORTANT FIX: CHECK success FIELD
+      if (response.statusCode == 200 && data["success"] == true) {
         return {
           "success": true,
           "message": data["message"] ?? "Signup successful"
@@ -83,6 +90,7 @@ static Future<Map<String, dynamic>> login(
           "message": data["message"] ?? "Signup failed"
         };
       }
+
     } catch (e) {
       print("SIGNUP ERROR: $e");
       return {
@@ -93,27 +101,27 @@ static Future<Map<String, dynamic>> login(
   }
 
   // ================= GET PROFILE =================
-static Future<Map<String, dynamic>> getProfile() async {
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString("token");
+  static Future<Map<String, dynamic>> getProfile() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString("token");
 
-    final response = await http.get(
-      Uri.parse("${ApiConfig.authBase}/profile"),
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer $token", // ✅ MUST
-      },
-    );
+      final response = await http.get(
+        Uri.parse("${ApiConfig.authBase}/profile"),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token",
+        },
+      );
 
-    final data = jsonDecode(response.body);
+      final data = jsonDecode(response.body);
+      return data;
 
-    return data;
-
-  } catch (e) {
-    return {"success": false, "message": "Server error"};
+    } catch (e) {
+      print("PROFILE ERROR: $e");
+      return {"success": false, "message": "Server error"};
+    }
   }
-}
 
   // ================= UPDATE PROFILE =================
   static Future<Map<String, dynamic>> updateProfile(
@@ -124,7 +132,7 @@ static Future<Map<String, dynamic>> getProfile() async {
 
       final response = await http
           .put(
-            Uri.parse("${ApiConfig.authBase}/profile"), // ✅ FIXED
+            Uri.parse("${ApiConfig.authBase}/profile"),
             headers: {
               "Content-Type": "application/json",
               "Authorization": "Bearer $token",
@@ -141,8 +149,8 @@ static Future<Map<String, dynamic>> getProfile() async {
       }
 
       final res = jsonDecode(response.body);
-
       return res;
+
     } catch (e) {
       print("UPDATE ERROR: $e");
       return {"success": false, "message": "Server error"};

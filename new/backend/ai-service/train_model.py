@@ -7,7 +7,6 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 
 # ================= CONFIG =================
-
 IMG_SIZE = 224
 BATCH_SIZE = 32
 EPOCHS = 15
@@ -17,11 +16,10 @@ MODEL_NAME = "plant_disease_model.h5"
 print("🚀 Starting Training...")
 
 # ================= DATA GENERATOR =================
-
 train_datagen = ImageDataGenerator(
     rescale=1./255,
-    rotation_range=20,
-    zoom_range=0.2,
+    rotation_range=25,
+    zoom_range=0.25,
     width_shift_range=0.2,
     height_shift_range=0.2,
     horizontal_flip=True,
@@ -46,15 +44,16 @@ val_generator = train_datagen.flow_from_directory(
 
 print("✅ Classes Found:", train_generator.class_indices)
 
-# ================= SAVE CLASS NAMES =================
+# ================= FIXED CLASS NAMES =================
+class_indices = train_generator.class_indices
+class_names = {str(v): k for k, v in class_indices.items()}
 
 with open("class_names.json", "w") as f:
-    json.dump(train_generator.class_indices, f)
+    json.dump(class_names, f)
 
-print("✅ class_names.json created")
+print("✅ class_names.json saved correctly")
 
-# ================= MODEL BUILD =================
-
+# ================= MODEL =================
 base_model = MobileNetV2(
     input_shape=(IMG_SIZE, IMG_SIZE, 3),
     include_top=False,
@@ -66,8 +65,9 @@ base_model.trainable = False
 model = models.Sequential([
     base_model,
     layers.GlobalAveragePooling2D(),
+    layers.BatchNormalization(),
     layers.Dense(256, activation='relu'),
-    layers.Dropout(0.4),
+    layers.Dropout(0.5),
     layers.Dense(train_generator.num_classes, activation='softmax')
 ])
 
@@ -78,10 +78,9 @@ model.compile(
 )
 
 # ================= CALLBACKS =================
-
 early_stop = EarlyStopping(
     monitor='val_loss',
-    patience=5,
+    patience=4,
     restore_best_weights=True
 )
 
@@ -93,17 +92,17 @@ checkpoint = ModelCheckpoint(
 )
 
 # ================= TRAIN =================
-
 history = model.fit(
     train_generator,
     validation_data=val_generator,
     epochs=EPOCHS,
     callbacks=[early_stop, checkpoint]
 )
+
 print("Final Training Accuracy:", history.history['accuracy'][-1])
 print("Final Validation Accuracy:", history.history['val_accuracy'][-1])
-# ================= SAVE FINAL MODEL =================
 
+# ================= SAVE =================
 model.save(MODEL_NAME)
 
 print("🎉 Training Complete!")

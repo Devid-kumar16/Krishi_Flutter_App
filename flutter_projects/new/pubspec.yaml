@@ -1,5 +1,5 @@
 name: agri_advisor
-description: "A Smart Agriculture Advisor App"
+description: A Smart Agriculture Advisor App
 publish_to: 'none'
 
 version: 1.0.0+1
@@ -10,6 +10,11 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+
+  # 🌍 Localization
+  flutter_localizations:
+    sdk: flutter
+  intl: ^0.20.2
 
   cupertino_icons: ^1.0.6
 
@@ -29,7 +34,7 @@ dependencies:
   # 📊 Charts
   fl_chart: ^0.66.0
 
-  # 📍 LOCATION (✅ FIXED POSITION)
+  # 📍 Location
   geolocator: ^14.0.2
 
 dev_dependencies:
@@ -39,6 +44,9 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  # ✅ REQUIRED FOR TRANSLATION
+  generate: true
 
   assets:
     - assets/

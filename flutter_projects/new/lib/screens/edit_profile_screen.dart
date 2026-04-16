@@ -243,7 +243,7 @@ final result = await AuthService.updateProfile({
                       type: TextInputType.emailAddress),
 
                   DropdownButtonFormField<String>(
-                    value: selectedCrop,
+                    initialValue: selectedCrop,
                     items: crops.map((crop) {
                       return DropdownMenuItem(
                         value: crop,

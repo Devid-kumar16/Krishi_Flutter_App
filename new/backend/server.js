@@ -18,22 +18,32 @@ const errorHandler = require("./middlewares/errorHandler");
 const app = express();
 const server = http.createServer(app);
 
+// ================= SOCKET =================
 const io = new Server(server, {
   cors: { origin: "*" },
 });
 
 // ================= MIDDLEWARE =================
+
+// ✅ CORS FIRST
 app.use(cors());
+
+// ✅ VERY IMPORTANT (BODY PARSING - FIXES YOUR ISSUE)
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// ✅ SECURITY
 app.use(helmet());
+
+// ✅ RATE LIMIT
 app.use(rateLimiter);
 
 // ================= STATIC =================
 app.use("/uploads", express.static("uploads"));
 
 // ================= ROUTES =================
-app.use("/api/auth", authRoutes);      // login/signup
-app.use("/api/auth", profileRoutes);   // ✅ FIXED HERE
+app.use("/api/auth", authRoutes);      // signup/login
+app.use("/api/auth", profileRoutes);   // profile routes
 app.use("/api/disease", diseaseRoutes);
 app.use("/api/advisory", advisoryRoutes);
 app.use("/api/market", marketRoutes);
@@ -59,6 +69,8 @@ io.on("connection", (socket) => {
 app.use(errorHandler);
 
 // ================= START SERVER =================
-server.listen(process.env.PORT, "0.0.0.0", () => {
-  console.log("Server running on port " + process.env.PORT);
+const PORT = process.env.PORT || 5000;
+
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server running on port ${PORT}`);
 });

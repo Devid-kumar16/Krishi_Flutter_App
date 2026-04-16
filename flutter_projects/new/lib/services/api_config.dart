@@ -5,7 +5,7 @@ class ApiConfig {
   // 🔐 Node.js Backend (Auth)
   static const String authBase = "http://10.37.241.138:5000/api/auth";
 
-  // 🤖 FastAPI Backend (AI + Market)
+  // 🤖 FastAPI Backend (AI + Disease)
   static const String aiBase = "http://10.37.241.138:8000";
 
 
@@ -15,10 +15,16 @@ class ApiConfig {
 
 
   // ================= AI =================
+
+  // 🌿 Disease Detection
   static const String disease = "$aiBase/predict";
-  static const String advisory = "$aiBase/advisory";
+
+  // 🤖 AI Advisory (FIXED)
+  static const String advisory = "$aiBase/chat";
 
 
   // ================= MARKET =================
+  // ❌ Only keep this if you actually created /market in backend
   static const String market = "$aiBase/market";
+
 }
